@@ -2,12 +2,15 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import api from '@/lib/api';
 
 export default function CreatePRPage() {
   const router = useRouter();
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
   const [items, setItems] = useState([{ description: '', quantity: 1, unitPrice: 0 }]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const addItem = () => {
     setItems([...items, { description: '', quantity: 1, unitPrice: 0 }]);
@@ -23,10 +26,24 @@ export default function CreatePRPage() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('PR Created:', { description, priority, items });
-    router.push('/dashboard/purchase-requisitions');
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await api.post('/purchase-requisitions', {
+        description,
+        priority,
+        items
+      });
+      router.push('/dashboard/purchase-requisitions');
+    } catch (err: any) {
+      console.error('Failed to create PR:', err);
+      setError(err.response?.data?.message || 'Failed to create Purchase Requisition.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const total = items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
@@ -34,13 +51,14 @@ export default function CreatePRPage() {
   return (
     <div className="max-w-4xl bg-white p-8 rounded-lg shadow-md mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Create Purchase Requisition</h1>
+      {error && <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded">{error}</div>}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700">Description</label>
             <input
               type="text"
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 border-gray-300"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
@@ -49,7 +67,7 @@ export default function CreatePRPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700">Priority</label>
             <select
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 border-gray-300"
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
             >
@@ -79,7 +97,7 @@ export default function CreatePRPage() {
                   <label className="block text-xs text-gray-500 mb-1">Item Description</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-1.5 border rounded text-gray-800"
+                    className="w-full px-3 py-1.5 border rounded text-gray-800 border-gray-300"
                     value={item.description}
                     onChange={(e) => updateItem(index, 'description', e.target.value)}
                     required
@@ -89,7 +107,7 @@ export default function CreatePRPage() {
                   <label className="block text-xs text-gray-500 mb-1">Qty</label>
                   <input
                     type="number"
-                    className="w-full px-3 py-1.5 border rounded text-gray-800"
+                    className="w-full px-3 py-1.5 border rounded text-gray-800 border-gray-300"
                     value={item.quantity}
                     onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value))}
                     required
@@ -99,7 +117,7 @@ export default function CreatePRPage() {
                   <label className="block text-xs text-gray-500 mb-1">Unit Price</label>
                   <input
                     type="number"
-                    className="w-full px-3 py-1.5 border rounded text-gray-800"
+                    className="w-full px-3 py-1.5 border rounded text-gray-800 border-gray-300"
                     value={item.unitPrice}
                     onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value))}
                     required
@@ -137,9 +155,10 @@ export default function CreatePRPage() {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold"
+              disabled={submitting}
+              className={`px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Submit PR
+              {submitting ? 'Submitting...' : 'Submit PR'}
             </button>
           </div>
         </div>
